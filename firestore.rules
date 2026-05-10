@@ -1,0 +1,165 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // 1. Default Deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // -------------------------------------------------------------------------
+    // H E L P E R S
+    // -------------------------------------------------------------------------
+    
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function getUserData(userId) {
+      return get(/databases/$(database)/documents/users/$(userId)).data;
+    }
+
+    function getMyData() {
+      return getUserData(request.auth.uid);
+    }
+
+    function isAdmin() {
+      return isSignedIn() && getMyData().role == 'admin';
+    }
+
+    function isSupervisor() {
+      return isSignedIn() && getMyData().role == 'supervisor';
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // -------------------------------------------------------------------------
+    // V A L I D A T I O N S
+    // -------------------------------------------------------------------------
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['id', 'name', 'email', 'role', 'employeeId']) &&
+             data.id == request.auth.uid &&
+             data.name is string && data.name.size() <= 100 &&
+             data.email is string && data.email.size() <= 100 &&
+             data.role in ['admin', 'supervisor', 'sales'] &&
+             data.employeeId is string && data.employeeId.size() > 0 && data.employeeId.size() <= 50;
+    }
+
+    function isValidAttendance(data) {
+      return data.keys().hasAll(['userId', 'type', 'status', 'date', 'timestamp']) &&
+             data.userId == request.auth.uid &&
+             data.type in ['present', 'absent', 'leave', 'check-out'] &&
+             data.status == 'pending' &&
+             data.date is string && data.date.size() <= 20 &&
+             data.timestamp is timestamp;
+    }
+
+    function isValidOrder(data) {
+      return data.keys().hasAll(['salesRepId', 'customerName', 'items', 'totalAmount', 'status', 'timestamp']) &&
+             data.salesRepId == request.auth.uid &&
+             data.customerName is string && data.customerName.size() <= 200 &&
+             data.items is list && data.items.size() <= 50 &&
+             data.totalAmount is number && data.totalAmount >= 0 &&
+             data.status in ['pending', 'approved', 'confirmed', 'delivered', 'cancelled'] &&
+             data.timestamp is timestamp;
+    }
+
+    function isValidTarget(data) {
+      return data.keys().hasAll(['userId', 'month', 'year', 'monthlyTarget', 'workingDays', 'dailyTarget']) &&
+             isValidId(data.userId) &&
+             data.month is string && data.year is number &&
+             data.monthlyTarget is number && data.monthlyTarget >= 0 &&
+             data.workingDays is number && data.workingDays > 0 &&
+             data.dailyTarget is number;
+    }
+
+    function isValidRoute(data) {
+      return data.keys().hasAll(['userId', 'dayNumber', 'routeName', 'outletIds', 'weightPercentage', 'createdAt', 'updatedAt']) &&
+             data.userId == request.auth.uid &&
+             data.dayNumber >= 1 && data.dayNumber <= 6 &&
+             data.weightPercentage is number && data.weightPercentage >= 0 && data.weightPercentage <= 100 &&
+             data.routeName is string && data.routeName.size() <= 100 &&
+             data.outletIds is list;
+    }
+
+    // -------------------------------------------------------------------------
+    // R U L E S
+    // -------------------------------------------------------------------------
+
+    match /users/{userId} {
+      allow get: if isSignedIn();
+      allow list: if isSignedIn() && (isAdmin() || isSupervisor());
+      allow create: if isSignedIn() && isValidUser(incoming());
+      allow update: if isAdmin() || (
+        isOwner(userId) && 
+        incoming().diff(existing()).affectedKeys().hasOnly(['name', 'photoUrl', 'language', 'lastActive'])
+      );
+    }
+
+    match /attendance/{attId} {
+      allow read: if isAdmin() || isSupervisor() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow create: if isSignedIn() && isValidAttendance(incoming());
+      allow update: if isAdmin() || (
+        isSupervisor() && 
+        existing().supervisorId == request.auth.uid &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt']) &&
+        incoming().status in ['confirmed', 'rejected']
+      );
+      allow delete: if isAdmin();
+    }
+
+    match /orders/{orderId} {
+      allow read: if isAdmin() || (isSignedIn() && (resource.data.salesRepId == request.auth.uid || resource.data.supervisorId == request.auth.uid));
+      allow create: if isSignedIn() && isValidOrder(incoming());
+      allow update: if isAdmin() || 
+                    (isSupervisor() && existing().supervisorId == request.auth.uid) ||
+                    (isSignedIn() && resource.data.salesRepId == request.auth.uid && existing().status == 'pending');
+      allow delete: if isAdmin();
+    }
+
+    match /territories/{territoryId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    match /targets/{targetId} {
+      allow read: if isAdmin() || isSupervisor() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow write: if isAdmin() || isSupervisor() || (isSignedIn() && (incoming().userId == request.auth.uid || resource.data.userId == request.auth.uid));
+    }
+
+    match /routes/{routeId} {
+      allow read: if isAdmin() || isSupervisor() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow write: if isSignedIn() && (incoming().userId == request.auth.uid || resource.data.userId == request.auth.uid) && isValidRoute(incoming());
+    }
+
+    match /outlets/{outletId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update, delete: if isAdmin() || (isSignedIn() && resource.data.salesRepId == request.auth.uid);
+    }
+
+    match /notifications/{notifId} {
+      allow read, write: if isSignedIn() && (resource.data.userId == request.auth.uid || incoming().userId == request.auth.uid);
+    }
+
+    match /locations/{locId} {
+      allow read: if isAdmin() || isSupervisor();
+      allow create: if isSignedIn();
+    }
+  }
+}

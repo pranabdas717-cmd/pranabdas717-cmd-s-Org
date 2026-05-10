@@ -1,0 +1,8 @@
+{
+  "name": "SMC Sales Activity",
+  "description": "Daily sales activity monitoring and reporting application.",
+  "requestFramePermissions": [
+    "geolocation"
+  ],
+  "majorCapabilities": []
+}

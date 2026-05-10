@@ -1,0 +1,188 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile information",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "role": { "type": "string", "enum": ["admin", "supervisor", "sales"] },
+        "employeeId": { "type": "string" },
+        "photoUrl": { "type": "string" },
+        "supervisorId": { "type": "string" },
+        "territoryId": { "type": "string" },
+        "language": { "type": "string", "enum": ["bn", "en"], "default": "bn" },
+        "lastActive": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "email", "role"]
+    },
+    "Territory": {
+      "title": "Territory",
+      "description": "A sales region/team",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "supervisorId": { "type": "string" },
+        "memberIds": { 
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "supervisorId", "createdAt"]
+    },
+    "Location": {
+      "title": "Location",
+      "description": "Real-time location update for a user",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "lat": { "type": "number" },
+        "lng": { "type": "number" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "accuracy": { "type": "number" }
+      },
+      "required": ["userId", "lat", "lng", "timestamp"]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "Sales order details",
+      "type": "object",
+      "properties": {
+        "salesRepId": { "type": "string" },
+        "salesRepName": { "type": "string" },
+        "supervisorId": { "type": "string" },
+        "territoryId": { "type": "string" },
+        "type": { "type": "string", "enum": ["order", "sale"], "default": "order" },
+        "customerName": { "type": "string" },
+        "customerPhone": { "type": "string" },
+        "address": { "type": "string" },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "quantity": { "type": "number" },
+              "price": { "type": "number" }
+            }
+          }
+        },
+        "totalAmount": { "type": "number" },
+        "status": { "type": "string", "enum": ["pending", "approved", "confirmed", "delivered", "cancelled"] },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "location": {
+          "type": "object",
+          "properties": {
+            "lat": { "type": "number" },
+            "lng": { "type": "number" }
+          }
+        }
+      },
+      "required": ["salesRepId", "customerName", "items", "totalAmount", "status", "timestamp"]
+    },
+    "Attendance": {
+      "title": "Attendance",
+      "description": "Attendance record for a user",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "supervisorId": { "type": "string" },
+        "type": { "type": "string", "enum": ["present", "absent", "leave", "check-out"] },
+        "status": { "type": "string", "enum": ["pending", "confirmed", "rejected"] },
+        "date": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "location": {
+          "type": "object",
+          "properties": {
+            "lat": { "type": "number" },
+            "lng": { "type": "number" }
+          }
+        },
+        "remark": { "type": "string" }
+      },
+      "required": ["userId", "type", "status", "date", "timestamp"]
+    },
+    "Notification": {
+      "title": "Notification",
+      "description": "App notification for a user",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "title": { "type": "string" },
+        "message": { "type": "string" },
+        "type": { "type": "string", "enum": ["order", "target", "system"] },
+        "read": { "type": "boolean" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "title", "message", "type", "read", "timestamp"]
+    },
+    "Outlet": {
+      "title": "Outlet",
+      "description": "Store or Customer outlet information",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "ownerName": { "type": "string" },
+        "phone": { "type": "string" },
+        "address": { "type": "string" },
+        "location": {
+          "type": "object",
+          "properties": {
+            "lat": { "type": "number" },
+            "lng": { "type": "number" }
+          }
+        },
+        "salesRepId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "ownerName", "phone", "address", "salesRepId", "createdAt"]
+    },
+    "Target": {
+      "title": "Target",
+      "description": "Monthly sales target for a user",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "month": { "type": "string" },
+        "year": { "type": "number" },
+        "monthlyTarget": { "type": "number" },
+        "workingDays": { "type": "number" },
+        "dailyTarget": { "type": "number" },
+        "monthlyProductTarget": { "type": "number" },
+        "dailyProductTarget": { "type": "number" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "month", "year", "monthlyTarget", "workingDays", "dailyTarget"]
+    },
+    "Route": {
+      "title": "Route",
+      "description": "Daily route configuration for a sales rep",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "dayNumber": { "type": "number" },
+        "routeName": { "type": "string" },
+        "outletIds": { "type": "array", "items": { "type": "string" } },
+        "weightPercentage": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "dayNumber", "routeName", "weightPercentage"]
+    }
+  },
+  "firestore": {
+    "users": { "schema": "User", "description": "Global user profiles" },
+    "locations": { "schema": "Location", "description": "Real-time location updates" },
+    "orders": { "schema": "Order", "description": "Sales orders" },
+    "attendance": { "schema": "Attendance", "description": "Daily attendance logs" },
+    "notifications": { "schema": "Notification", "description": "User notifications" },
+    "outlets": { "schema": "Outlet", "description": "Registered outlets/stores" },
+    "targets": { "schema": "Target", "description": "Monthly sales targets" },
+    "territories": { "schema": "Territory", "description": "Sales territories/teams" },
+    "routes": { "schema": "Route", "description": "Sales rep daily routes" }
+  }
+}
